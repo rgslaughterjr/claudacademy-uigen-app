@@ -1,323 +1,41 @@
 name: Claude PR Review
 
-env:
-  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  NODE_ENV: development
-  PORT: 3000
-  CLAUDE_DEBUG: true
-  CLAUDE_CONFIG: |
-    {
-      "mcpServers": {
-        "playwright": {
-          "command": "npx",
-          "args": [
-            "@playwright/mcp@latest",
-            "--allowed-origins",
-            "localhost:3000;cdn.tailwindcss.com;esm.sh"
-          ]
-        }
-      }
-    }
-  CLAUDE_TOOLS: |
-    Bash(npm:*),
-    Bash(sqlite3:*),
-    mcp__playwright__browser_snapshot,
-    mcp__playwright__browser_click,
-    mcp__playwright__browser_fill,
-    mcp__playwright__browser_goto,
-    mcp__playwright__browser_press,
-    mcp__playwright__browser_select,
-    mcp__playwright__browser_wait,
-    mcp__playwright__browser_close
-  CLAUDE_INSTRUCTIONS: |
-    The project is already set up with all dependencies installed.
-    The server is already running at localhost:3000. Logs from it
-    are being written to logs.txt. If needed, you can query the
-    db with the 'sqlite3' cli. If needed, use the mcp__playwright
-    set of tools to launch a browser and interact with the app.
-
 on:
   issues:
-    types: [opened, edited, reopened]
+    types: [opened, edited]
   issue_comment:
-    types: [created]
-  pull_request:
-    types: [opened, synchronize, reopened]
-  pull_request_review_comment:
     types: [created]
 
 permissions:
   issues: write
-  pull-requests: write
   contents: read
 
 jobs:
   claude-issue-response:
-    name: Claude Issue Response
     runs-on: ubuntu-latest
     if: |
-      (github.event_name == 'issues') ||
-      (github.event_name == 'issue_comment' && 
-       (contains(github.event.comment.body, '@claude') || 
-        contains(github.event.comment.body, '@Claude')))
-    
+      contains(github.event.issue.body, '@claude') ||
+      contains(github.event.comment.body, '@claude')
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: |
-          echo "Installing dependencies..."
-          npm ci
-          npm install -g @anthropic-ai/claude-code
-          echo "Dependencies installed successfully"
-
-      - name: Debug Event Info
-        run: |
-          echo "Event name: ${{ github.event_name }}"
-          echo "Event action: ${{ github.event.action }}"
-          echo "Issue number: ${{ github.event.issue.number }}"
-          if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            echo "Comment body: ${{ github.event.comment.body }}"
-          fi
-
-      - name: Handle Issue Response
+      - name: Respond to Issue
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const issue = context.payload.issue;
             const comment = context.payload.comment;
+            const body = comment ? comment.body : issue.body;
             
-            console.log('Processing event:', {
-              eventName: context.eventName,
-              action: context.payload.action,
-              issueNumber: issue?.number,
-              commentBody: comment?.body
+            console.log('Processing request:', {
+              type: comment ? 'comment' : 'issue',
+              body: body
             });
             
-            // Function to process Claude's response
-            async function processClaudeResponse(prompt) {
-              console.log('Processing Claude response for prompt:', prompt);
-              const claude = require('@anthropic-ai/claude-code');
-              const response = await claude.complete({
-                prompt: prompt,
-                max_tokens: 1000,
-                model: 'claude-3-5-sonnet-20241022'
-              });
-              return response.choices[0].text;
-            }
+            const response = "I see you've mentioned me! I'm Claude, and I'm ready to help with your issue. I'm still being set up to handle GitHub issues - please bear with me as my maintainers improve my capabilities.";
             
-            let responseText;
-            try {
-              if (context.eventName === 'issues') {
-                // New issue created
-                const prompt = `Please help with this issue:\n${issue.title}\n${issue.body}`;
-                responseText = await processClaudeResponse(prompt);
-              } else if (context.eventName === 'issue_comment') {
-                // @claude mentioned in comment
-                const prompt = `Please respond to this comment:\n${comment.body}`;
-                responseText = await processClaudeResponse(prompt);
-              }
-              
-              // Post Claude's response
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                body: `🤖 **Claude's Response**\n\n${responseText}`
-              });
-              
-              console.log('Response posted successfully');
-              
-            } catch (error) {
-              console.error('Error processing response:', error);
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: issue.number,
-                body: `❌ **Error**: I encountered an error while processing this request. Please check the workflow logs for details.`
-              });
-            }
-
-  claude-review:
-    name: Claude AI Code Review
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.draft == false
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm install -g @anthropic-ai/claude-code eslint prettier jest-coverage-report-action
-
-      - name: Project Setup
-        run: |
-          npm run setup
-          npm run dev:daemon
-          echo "Waiting for dev server to start..."
-          sleep 5
-          curl -s http://localhost:3000 > /dev/null
-          echo "Dev server is running"
-
-      - name: Run ESLint
-        run: npx eslint . --format json --output-file eslint-report.json
-
-      - name: Run Prettier Check
-        run: npx prettier --check .
-
-      - name: Run Tests with Coverage
-        run: npm test -- --coverage
-        continue-on-error: true
-
-      - name: Generate Coverage Report
-        uses: jest-coverage-report-action@v2
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          coverage-file: ./coverage/coverage-final.json
-          base-coverage-file: ./coverage/coverage-base.json
-
-      - name: Claude PR Analysis
-        env:
-          ESLINT_REPORT: ${{ steps.eslint.outputs.json }}
-        run: |
-          echo "🤖 Claude is reviewing your pull request..."
-          echo "Analyzing:"
-          echo "- Code quality and best practices"
-          echo "- Security vulnerabilities"
-          echo "- Performance optimizations"
-          echo "- Test coverage"
-          echo "- Documentation completeness"
-          
-          # Run Claude Code analysis
-          npx @anthropic-ai/claude-code review \
-            --eslint-report=eslint-report.json \
-            --coverage-report=./coverage/coverage-final.json
-
-      - name: Auto-label PR
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const files = await github.rest.pulls.listFiles({
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              pull_number: context.issue.number
+              issue_number: issue.number,
+              body: response
             });
-            
-            const labels = new Set();
-            
-            files.data.forEach(file => {
-              if (file.filename.endsWith('.test.ts') || file.filename.endsWith('.spec.ts')) {
-                labels.add('tests');
-              }
-              if (file.filename.endsWith('.md')) {
-                labels.add('documentation');
-              }
-              if (file.filename.match(/\.(tsx?|jsx?)$/)) {
-                labels.add('code');
-              }
-              if (file.filename.includes('security') || file.filename.includes('auth')) {
-                labels.add('security');
-              }
-            });
-            
-            if (labels.size > 0) {
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                labels: Array.from(labels)
-              });
-            }
-      
-      - name: Post Review Comment
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const prNumber = context.issue.number;
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            
-            // Only post initial comment on PR open
-            if (context.payload.action === 'opened') {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: prNumber,
-                body: `## 🤖 Claude AI Review Enabled
-                
-                Hello! I'm Claude, your AI assistant for this pull request. I can help with:
-                
-                - 🔍 **Code Review**: Analyzing your changes for quality and best practices
-                - 🛡️ **Security**: Identifying potential vulnerabilities
-                - ⚡ **Performance**: Suggesting optimizations
-                - 🧪 **Testing**: Reviewing test coverage and quality
-                - 📚 **Documentation**: Checking completeness and clarity
-                
-                ### How to interact with me:
-                - Mention \`@claude\` in a comment to ask questions
-                - Use \`@claude review [type]\` for specific reviews (security, performance, tests, docs)
-                - I'll automatically review all new commits
-                
-                ### Quick Commands:
-                - \`@claude review\` - Full code review
-                - \`@claude explain\` - Explain complex code sections
-                - \`@claude suggest\` - Get improvement suggestions
-                - \`@claude test\` - Generate test cases
-                
-                Ready to assist with your code review! 🚀`
-              });
-            }
-
-  auto-merge-check:
-    name: Auto-merge Safety Check
-    runs-on: ubuntu-latest
-    needs: claude-review
-    if: contains(github.event.pull_request.labels.*.name, 'auto-merge')
-    
-    steps:
-      - name: Check merge safety
-        run: |
-          echo "✅ Running auto-merge safety checks..."
-          
-          # Check test status
-          if [[ "${{ needs.claude-review.outputs.tests }}" != "success" ]]; then
-            echo "❌ Tests must pass before auto-merge"
-            exit 1
-          fi
-          
-          # Check security scan
-          if [[ "${{ needs.claude-review.outputs.security }}" != "clean" ]]; then
-            echo "❌ Security issues detected"
-            exit 1
-          fi
-          
-          # Check Claude review status
-          if [[ "${{ needs.claude-review.outputs.review }}" != "approved" ]]; then
-            echo "❌ Requires Claude approval"
-            exit 1
-          fi
-          
-          echo "✅ PR is safe to auto-merge!"
