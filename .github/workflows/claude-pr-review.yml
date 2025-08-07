@@ -18,17 +18,8 @@ jobs:
       contains(github.event.comment.body, '@claude')
     
     steps:
-      - name: Checkout main repo
+      - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          path: main-repo
-
-      - name: Checkout uigen repo
-        uses: actions/checkout@v4
-        with:
-          repository: rgslaughterjr/uigen
-          path: uigen
-          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Analyze and Respond
         uses: actions/github-script@v7
@@ -49,12 +40,12 @@ jobs:
               response.push('🔍 Analyzing Toggle Button State Management...\n');
               
               try {
-                // Debug directory contents
-                const lsOutput = execSync('ls -la uigen', { encoding: 'utf8' });
-                response.push('📂 UIGen repository contents:\n```\n' + lsOutput + '\n```\n');
+                // Debug current directory
+                const lsOutput = execSync('ls -la', { encoding: 'utf8' });
+                response.push('📂 Repository contents:\n```\n' + lsOutput + '\n```\n');
                 
                 // Look for toggle button files
-                const findCmd = "find uigen -type f -name '*.tsx' -o -name '*.jsx' -o -name '*.ts' -o -name '*.js'";
+                const findCmd = "find . -type f -name '*.tsx' -o -name '*.jsx' -o -name '*.ts' -o -name '*.js'";
                 const files = execSync(findCmd, { encoding: 'utf8' }).split('\n').filter(Boolean);
                 
                 response.push(`Found ${files.length} code files to analyze.`);
@@ -109,9 +100,9 @@ jobs:
                   response.push('4. Consider state persistence');
                   
                 } else {
-                  response.push('\n⚠️ No toggle button implementations found in repository.');
-                  response.push('\nPlease check that:');
-                  response.push('1. The code is committed and pushed');
+                  response.push('\n⚠️ No toggle button implementations found.');
+                  response.push('\nPlease ensure that:');
+                  response.push('1. Toggle button code is in this repository');
                   response.push('2. Files use .tsx, .jsx, .ts, or .js extensions');
                   response.push('3. Components contain "toggle" or "switch" in their code');
                 }
@@ -119,7 +110,7 @@ jobs:
               } catch (error) {
                 response.push('❌ Error analyzing code:');
                 response.push(error.message);
-                response.push('\nPlease ensure both repositories are accessible.');
+                response.push('\nPlease ensure the repository is accessible.');
               }
               
             } else {
