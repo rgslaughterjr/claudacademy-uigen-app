@@ -41,9 +41,21 @@ npm run dev    # Start dev server on http://localhost:3000
 - npm or yarn
 - Anthropic API key (optional - falls back to mock)
 
+## 🔑 Setup Claude PR Assistance
+
+This repository includes Claude AI integration for automated PR reviews. To enable:
+
+1. **Get Anthropic API Key**: Visit [console.anthropic.com](https://console.anthropic.com/)
+2. **Add to GitHub Secrets**: 
+   - Go to Settings → Secrets → Actions
+   - Add `ANTHROPIC_API_KEY`
+3. **Test locally**: Run `test-anthropic-key.bat YOUR_KEY`
+
+See [SETUP_ANTHROPIC_KEY.md](SETUP_ANTHROPIC_KEY.md) for detailed instructions.
+
 ## 🤝 Contributing
 
-Feel free to submit issues and pull requests!
+Feel free to submit issues and pull requests! Claude AI will automatically review your code.
 
 ## 📄 License
 
