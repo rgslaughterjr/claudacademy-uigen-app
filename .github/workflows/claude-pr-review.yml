@@ -18,40 +18,94 @@ jobs:
       contains(github.event.comment.body, '@claude')
     
     steps:
-      - name: Post Response
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Analyze and Respond
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const fs = require('fs');
+            const { execSync } = require('child_process');
+            
             const issue = context.payload.issue;
             const comment = context.payload.comment;
             const content = comment ? comment.body : issue.body;
             const lowerContent = content.toLowerCase();
             
-            let response;
+            let response = [];
             
             if (lowerContent.includes('state')) {
-              response = [
-                '🔍 State Management Analysis:',
-                '',
-                '1. Component State:',
-                '   - Toggle state initialization',
-                '   - State updates on click',
-                '   - State persistence',
-                '   - State synchronization',
-                '',
-                '2. Props:',
-                '   - TypeScript interfaces',
-                '   - Default values',
-                '   - Props validation',
-                '',
-                '3. Event Handling:',
-                '   - Click handlers',
-                '   - Change events',
-                '   - Custom events',
-                '',
-                'Would you like me to examine any specific aspect?'
-              ].join('\n');
+              response.push('🔍 Analyzing Toggle Button State Management...\n');
+              
+              try {
+                // Look for toggle button files
+                const findCmd = "find . -type f -name '*.tsx' -o -name '*.jsx' -o -name '*.ts' -o -name '*.js'";
+                const files = execSync(findCmd, { encoding: 'utf8' }).split('\n').filter(Boolean);
+                
+                const toggleFiles = files.filter(file => {
+                  try {
+                    const content = fs.readFileSync(file, 'utf8');
+                    return content.toLowerCase().includes('toggle') || content.toLowerCase().includes('switch');
+                  } catch (error) {
+                    return false;
+                  }
+                });
+                
+                if (toggleFiles.length > 0) {
+                  response.push('📁 Found toggle button implementations:');
+                  
+                  for (const file of toggleFiles) {
+                    const content = fs.readFileSync(file, 'utf8');
+                    response.push(`\n**${file}**`);
+                    
+                    // Check state management
+                    const stateChecks = {
+                      'useState': 'Basic state management',
+                      'useReducer': 'Complex state management',
+                      'useContext': 'Global state management',
+                      'onChange': 'State change handlers',
+                      'setState': 'Class component state',
+                      'interface': 'TypeScript type definitions',
+                      'onClick': 'Click event handlers'
+                    };
+                    
+                    for (const [pattern, description] of Object.entries(stateChecks)) {
+                      if (content.includes(pattern)) {
+                        response.push(`✅ ${description}`);
+                      }
+                    }
+                    
+                    // Code quality checks
+                    if (!content.includes('interface') && !content.includes('type')) {
+                      response.push('⚠️ Missing TypeScript type definitions');
+                    }
+                    if (!content.includes('onChange') && !content.includes('onClick')) {
+                      response.push('⚠️ Missing state change handlers');
+                    }
+                  }
+                  
+                  response.push('\n**Recommendations:**');
+                  response.push('1. Ensure proper state initialization');
+                  response.push('2. Add TypeScript interfaces/types');
+                  response.push('3. Implement change handlers');
+                  response.push('4. Consider state persistence');
+                  
+                } else {
+                  response.push('⚠️ No toggle button implementations found.');
+                  response.push('Please check that:');
+                  response.push('1. The code is committed');
+                  response.push('2. Files use .tsx, .jsx, .ts, or .js extensions');
+                  response.push('3. Components contain "toggle" or "switch" in their code');
+                }
+                
+              } catch (error) {
+                response.push('❌ Error analyzing code:');
+                response.push(error.message);
+                response.push('\nPlease ensure the repository is properly configured.');
+              }
+              
             } else {
               response = [
                 '👋 I can help analyze your toggle button! What would you like me to check?',
@@ -63,12 +117,12 @@ jobs:
                 '- "@claude check accessibility" - Verify accessibility',
                 '',
                 'Let me know which aspect to focus on!'
-              ].join('\n');
+              ];
             }
             
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: response
+              body: response.join('\n')
             });
