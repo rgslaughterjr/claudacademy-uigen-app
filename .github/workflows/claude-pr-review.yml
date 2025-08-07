@@ -1,5 +1,32 @@
 name: Claude PR Review
 
+env:
+  ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  NODE_ENV: development
+  PORT: 3000
+
+# Tools and instructions for Claude when running in GitHub Actions
+claude:
+  allowed_tools: |
+    Bash(npm:*),
+    Bash(sqlite3:*),
+    mcp__playwright__browser_snapshot,
+    mcp__playwright__browser_click,
+    mcp__playwright__browser_fill,
+    mcp__playwright__browser_goto,
+    mcp__playwright__browser_press,
+    mcp__playwright__browser_select,
+    mcp__playwright__browser_wait,
+    mcp__playwright__browser_close
+
+  custom_instructions: |
+    The project is already set up with all dependencies installed.
+    The server is already running at localhost:3000. Logs from it
+    are being written to logs.txt. If needed, you can query the
+    db with the 'sqlite3' cli. If needed, use the mcp__playwright
+    set of tools to launch a browser and interact with the app.
+
 on:
   pull_request:
     types: [opened, synchronize, reopened]
@@ -24,19 +51,92 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
       
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm install -g @anthropic-ai/claude-code eslint prettier jest-coverage-report-action
+
+      - name: Project Setup
+        run: |
+          npm run setup
+          npm run dev:daemon
+          echo "Waiting for dev server to start..."
+          sleep 5
+          curl -s http://localhost:3000 > /dev/null
+          echo "Dev server is running"
+
+      - name: Run ESLint
+        run: npx eslint . --format json --output-file eslint-report.json
+
+      - name: Run Prettier Check
+        run: npx prettier --check .
+
+      - name: Run Tests with Coverage
+        run: npm test -- --coverage
+        continue-on-error: true
+
+      - name: Generate Coverage Report
+        uses: jest-coverage-report-action@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          coverage-file: ./coverage/coverage-final.json
+          base-coverage-file: ./coverage/coverage-base.json
+
       - name: Claude PR Analysis
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ESLINT_REPORT: ${{ steps.eslint.outputs.json }}
         run: |
           echo "🤖 Claude is reviewing your pull request..."
-          echo "This workflow will analyze:"
+          echo "Analyzing:"
           echo "- Code quality and best practices"
           echo "- Security vulnerabilities"
           echo "- Performance optimizations"
           echo "- Test coverage"
           echo "- Documentation completeness"
+          
+          # Run Claude Code analysis
+          npx @anthropic-ai/claude-code review \
+            --eslint-report=eslint-report.json \
+            --coverage-report=./coverage/coverage-final.json
+
+      - name: Auto-label PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const files = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number
+            });
+            
+            const labels = new Set();
+            
+            files.data.forEach(file => {
+              if (file.filename.endsWith('.test.ts') || file.filename.endsWith('.spec.ts')) {
+                labels.add('tests');
+              }
+              if (file.filename.endsWith('.md')) {
+                labels.add('documentation');
+              }
+              if (file.filename.match(/\.(tsx?|jsx?)$/)) {
+                labels.add('code');
+              }
+              if (file.filename.includes('security') || file.filename.includes('auth')) {
+                labels.add('security');
+              }
+            });
+            
+            if (labels.size > 0) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: Array.from(labels)
+              });
+            }
       
       - name: Post Review Comment
         uses: actions/github-script@v7
@@ -87,8 +187,24 @@ jobs:
     steps:
       - name: Check merge safety
         run: |
-          echo "✅ Checking if PR is safe to auto-merge..."
-          echo "- All tests must pass"
-          echo "- No security issues detected"
-          echo "- Approved by Claude review"
-          echo "- No merge conflicts"
+          echo "✅ Running auto-merge safety checks..."
+          
+          # Check test status
+          if [[ "${{ needs.claude-review.outputs.tests }}" != "success" ]]; then
+            echo "❌ Tests must pass before auto-merge"
+            exit 1
+          fi
+          
+          # Check security scan
+          if [[ "${{ needs.claude-review.outputs.security }}" != "clean" ]]; then
+            echo "❌ Security issues detected"
+            exit 1
+          fi
+          
+          # Check Claude review status
+          if [[ "${{ needs.claude-review.outputs.review }}" != "approved" ]]; then
+            echo "❌ Requires Claude approval"
+            exit 1
+          fi
+          
+          echo "✅ PR is safe to auto-merge!"
