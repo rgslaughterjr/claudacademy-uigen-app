@@ -41,14 +41,17 @@ jobs:
               
               try {
                 // Debug current directory
-                const lsOutput = execSync('ls -la', { encoding: 'utf8' });
+                const lsOutput = execSync('ls -R', { encoding: 'utf8' });
                 response.push('📂 Repository contents:\n```\n' + lsOutput + '\n```\n');
                 
                 // Look for toggle button files
-                const findCmd = "find . -type f -name '*.tsx' -o -name '*.jsx' -o -name '*.ts' -o -name '*.js'";
+                const findCmd = "find . -type f \\( -name '*.tsx' -o -name '*.jsx' -o -name '*.ts' -o -name '*.js' \\)";
                 const files = execSync(findCmd, { encoding: 'utf8' }).split('\n').filter(Boolean);
                 
-                response.push(`Found ${files.length} code files to analyze.`);
+                response.push(`Found ${files.length} code files to analyze:\n`);
+                response.push('```');
+                files.forEach(file => response.push(file));
+                response.push('```\n');
                 
                 const toggleFiles = files.filter(file => {
                   try {
@@ -105,6 +108,9 @@ jobs:
                   response.push('1. Toggle button code is in this repository');
                   response.push('2. Files use .tsx, .jsx, .ts, or .js extensions');
                   response.push('3. Components contain "toggle" or "switch" in their code');
+                  response.push('\nRecommended locations:');
+                  response.push('- `uigen/src/components/`');
+                  response.push('- `uigen/src/features/`');
                 }
                 
               } catch (error) {
