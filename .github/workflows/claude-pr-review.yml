@@ -47,54 +47,84 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: recursive
+
+      - name: Debug Directory Structure
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "\nDirectory contents:"
+          ls -la
+          echo "\nRecursive contents:"
+          find . -type f -name "*.ts*" -o -name "*.js*"
 
       - name: Search and Analyze Code
         id: analyze
         run: |
-          # Find toggle button files
+          # Navigate to uigen directory
+          cd uigen
+          
           echo "Looking for toggle button implementations..."
-          TOGGLE_FILES=$(find . -type f \( -name "*.tsx" -o -name "*.jsx" -o -name "*.ts" -o -name "*.js" \) -exec grep -l "toggle" {} \;)
+          
+          # Search in src directory for toggle components
+          TOGGLE_FILES=$(find . -type f \( -name "*.tsx" -o -name "*.jsx" -o -name "*.ts" -o -name "*.js" \) -exec grep -l -i "toggle\|switch" {} \; || true)
           
           if [ -n "$TOGGLE_FILES" ]; then
             echo "Found toggle button files:"
             echo "$TOGGLE_FILES"
             
-            # Analyze implementations
-            echo "ANALYSIS<<EOF" >> $GITHUB_ENV
-            echo "**Implementation Analysis:**" >> $GITHUB_ENV
-            echo "" >> $GITHUB_ENV
-            
-            for file in $TOGGLE_FILES; do
-              echo "Analyzing $file..." >> $GITHUB_ENV
+            # Start analysis output
+            {
+              echo "ANALYSIS<<EOF"
+              echo "**Implementation Analysis Results:**"
+              echo ""
               
-              # Check state management
-              if grep -q "useState\|useReducer" "$file"; then
-                echo "✅ Found state management:" >> $GITHUB_ENV
-                if grep -q "useState" "$file"; then
-                  echo "- Uses useState for state updates" >> $GITHUB_ENV
+              for file in $TOGGLE_FILES; do
+                echo "📄 Analyzing \`$file\`:"
+                echo ""
+                
+                # Check state management
+                if grep -l "useState\|useReducer\|useContext" "$file" > /dev/null; then
+                  echo "✅ State Management:"
+                  grep -l "useState" "$file" > /dev/null && echo "  - Uses useState for toggle state"
+                  grep -l "useReducer" "$file" > /dev/null && echo "  - Uses useReducer for complex state"
+                  grep -l "useContext" "$file" > /dev/null && echo "  - Uses Context for state sharing"
+                else
+                  echo "❌ No React state management found"
                 fi
-                if grep -q "useReducer" "$file"; then
-                  echo "- Uses useReducer for complex state" >> $GITHUB_ENV
+                
+                # Check event handlers
+                if grep -l "onClick\|onChange\|onToggle" "$file" > /dev/null; then
+                  echo "✅ Event Handling:"
+                  grep -l "onClick" "$file" > /dev/null && echo "  - Implements click handling"
+                  grep -l "onChange" "$file" > /dev/null && echo "  - Handles state changes"
+                  grep -l "onToggle" "$file" > /dev/null && echo "  - Custom toggle handler"
+                else
+                  echo "❌ No event handlers found"
                 fi
-              fi
+                
+                # Check props
+                if grep -l "interface.*Props\|type.*Props" "$file" > /dev/null; then
+                  echo "✅ Props Management:"
+                  echo "  - TypeScript props interface/type defined"
+                else
+                  echo "❌ No TypeScript props definition found"
+                fi
+                
+                echo ""
+              done
               
-              # Check event handling
-              if grep -q "onClick\|onChange" "$file"; then
-                echo "✅ Found event handlers:" >> $GITHUB_ENV
-                if grep -q "onClick" "$file"; then
-                  echo "- Implements click handling" >> $GITHUB_ENV
-                fi
-                if grep -q "onChange" "$file"; then
-                  echo "- Handles state changes" >> $GITHUB_ENV
-                fi
-              fi
+              echo "**Recommendations:**"
+              echo "1. Ensure proper state initialization"
+              echo "2. Add state persistence if needed"
+              echo "3. Consider adding TypeScript types"
+              echo "4. Implement proper event handling"
+              echo ""
               
-              echo "" >> $GITHUB_ENV
-            done
-            
-            echo "EOF" >> $GITHUB_ENV
+              echo "EOF"
+            } >> $GITHUB_ENV
           else
-            echo "ANALYSIS=No toggle button implementation files found. Please ensure the code is committed." >> $GITHUB_ENV
+            echo "ANALYSIS=**No Toggle Button Files Found**\n\nCould not locate any toggle button implementations in the codebase. Please check:\n1. The code is committed\n2. The files use .tsx, .jsx, .ts, or .js extensions\n3. The components contain 'toggle' or 'switch' in their name or content" >> $GITHUB_ENV
           fi
 
       - name: Post Response
