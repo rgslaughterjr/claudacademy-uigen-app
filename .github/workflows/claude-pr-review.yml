@@ -1,4 +1,4 @@
-name: Claude PR Review
+name: Claude Issue Response
 
 on:
   issues:
@@ -10,70 +10,50 @@ permissions:
   issues: write
   contents: read
 
+env:
+  DEFAULT_RESPONSE: |
+    👋 Hello! I'm analyzing your request and will help you resolve this issue.
+    
+    Please give me a moment to examine the details and provide a thorough response.
+  TOGGLE_RESPONSE: |
+    I'll help verify the toggle button functionality:
+
+    🔍 Areas to check:
+    1. State management
+    2. Event handling
+    3. UI/UX consistency
+    4. Browser compatibility
+    5. Accessibility compliance
+
+    Would you like me to start with any specific aspect?
+
 jobs:
-  claude-issue-response:
+  respond-to-mention:
     runs-on: ubuntu-latest
     if: |
       contains(github.event.issue.body, '@claude') ||
       contains(github.event.comment.body, '@claude')
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Respond to Issue
+      - name: Process Response
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const issue = context.payload.issue;
             const comment = context.payload.comment;
-            const body = comment ? comment.body : issue.body;
+            const content = comment ? comment.body : issue.body;
             
-            console.log('Processing request:', {
-              type: comment ? 'comment' : 'issue',
-              body: body
-            });
+            // Determine the type of request
+            const isToggleRequest = content.toLowerCase().includes('toggle') && 
+                                  content.toLowerCase().includes('verify');
             
-            // Parse the request to understand what's needed
-            const isToggleButtonIssue = body.toLowerCase().includes('toggle button');
-            const isTestRequest = body.toLowerCase().includes('test');
-            const isVerifyRequest = body.toLowerCase().includes('verify');
+            // Select appropriate response
+            const response = isToggleRequest ? 
+              process.env.TOGGLE_RESPONSE :
+              process.env.DEFAULT_RESPONSE;
             
-            let response;
-            if (isToggleButtonIssue) {
-              response = `👋 Hello! I'll help you investigate the toggle button functionality.
-
-Current focus areas based on your description:
-1. Stability issues
-2. Button functionality
-3. State management
-
-I can help with:
-- Component implementation review
-- State management analysis 
-- Event handling verification
-- UI/UX consistency checks
-- Accessibility testing
-- Browser compatibility testing
-
-**Next Steps:**
-1. I'll examine the toggle button implementation
-2. Run functional tests across states
-3. Check for common stability issues
-
-Which aspect should I focus on first? Let me know if you have specific scenarios to test.`;
-            } else {
-              response = `👋 Hello! I'm reviewing your issue. To help you best, could you provide:
-1. Specific behavior you're seeing
-2. Expected behavior
-3. Any error messages
-4. Steps to reproduce
-
-I'm ready to analyze the code and suggest solutions.`;
-            }
-            
+            // Post the response
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
