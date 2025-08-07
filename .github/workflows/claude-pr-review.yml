@@ -43,24 +43,35 @@ jobs:
             
             let response;
             if (isToggleButtonIssue) {
-              response = `I'll help you with the toggle button issue! Let me analyze it:
+              response = `👋 Hello! I'll help you investigate the toggle button functionality.
 
-1. First, I'll check the toggle button implementation
-2. I'll verify the functionality across different states
-3. I'll look for any potential stability issues
+Current focus areas based on your description:
+1. Stability issues
+2. Button functionality
+3. State management
 
-Please provide any specific test cases or scenarios you'd like me to check.
+I can help with:
+- Component implementation review
+- State management analysis 
+- Event handling verification
+- UI/UX consistency checks
+- Accessibility testing
+- Browser compatibility testing
 
-Common toggle button issues I can help with:
-- State management problems
-- Event handling issues
-- Styling inconsistencies
-- Accessibility concerns
-- Browser compatibility issues
+**Next Steps:**
+1. I'll examine the toggle button implementation
+2. Run functional tests across states
+3. Check for common stability issues
 
-Would you like me to start with any particular aspect?`;
+Which aspect should I focus on first? Let me know if you have specific scenarios to test.`;
             } else {
-              response = "I'll help you with this issue. Could you please provide more details about what you'd like me to check or verify?";
+              response = `👋 Hello! I'm reviewing your issue. To help you best, could you provide:
+1. Specific behavior you're seeing
+2. Expected behavior
+3. Any error messages
+4. Steps to reproduce
+
+I'm ready to analyze the code and suggest solutions.`;
             }
             
             await github.rest.issues.createComment({
