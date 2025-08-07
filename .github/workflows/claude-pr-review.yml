@@ -6,10 +6,7 @@ env:
   NODE_ENV: development
   PORT: 3000
   CLAUDE_DEBUG: true
-
-# Tools and instructions for Claude when running in GitHub Actions
-claude:
-  mcp_config: |
+  CLAUDE_CONFIG: |
     {
       "mcpServers": {
         "playwright": {
@@ -22,8 +19,7 @@ claude:
         }
       }
     }
-
-  allowed_tools: |
+  CLAUDE_TOOLS: |
     Bash(npm:*),
     Bash(sqlite3:*),
     mcp__playwright__browser_snapshot,
@@ -34,8 +30,7 @@ claude:
     mcp__playwright__browser_select,
     mcp__playwright__browser_wait,
     mcp__playwright__browser_close
-
-  custom_instructions: |
+  CLAUDE_INSTRUCTIONS: |
     The project is already set up with all dependencies installed.
     The server is already running at localhost:3000. Logs from it
     are being written to logs.txt. If needed, you can query the
