@@ -20,6 +20,18 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Debug Info
+        run: |
+          echo "Current directory:"
+          pwd
+          echo "\nRepository files:"
+          ls -R
       
       - name: Analyze and Respond
         uses: actions/github-script@v7
@@ -40,21 +52,29 @@ jobs:
               response.push('🔍 Analyzing Toggle Button State Management...\n');
               
               try {
+                // Debug workspace
+                response.push('📂 Workspace contents:');
+                const lsOutput = execSync('ls -R', { encoding: 'utf8' });
+                response.push('```\n' + lsOutput + '\n```\n');
+                
                 // Look for toggle button files
                 const findCmd = "find . -type f -name '*.tsx' -o -name '*.jsx' -o -name '*.ts' -o -name '*.js'";
                 const files = execSync(findCmd, { encoding: 'utf8' }).split('\n').filter(Boolean);
+                
+                response.push(`Found ${files.length} code files to analyze.`);
                 
                 const toggleFiles = files.filter(file => {
                   try {
                     const content = fs.readFileSync(file, 'utf8');
                     return content.toLowerCase().includes('toggle') || content.toLowerCase().includes('switch');
                   } catch (error) {
+                    response.push(`⚠️ Error reading ${file}: ${error.message}`);
                     return false;
                   }
                 });
                 
                 if (toggleFiles.length > 0) {
-                  response.push('📁 Found toggle button implementations:');
+                  response.push('\n📁 Found toggle button implementations:');
                   
                   for (const file of toggleFiles) {
                     const content = fs.readFileSync(file, 'utf8');
@@ -93,9 +113,10 @@ jobs:
                   response.push('4. Consider state persistence');
                   
                 } else {
-                  response.push('⚠️ No toggle button implementations found.');
-                  response.push('Please check that:');
-                  response.push('1. The code is committed');
+                  response.push('\n⚠️ No toggle button implementations found in repository:');
+                  response.push(`${context.repo.owner}/${context.repo.repo}`);
+                  response.push('\nPlease check that:');
+                  response.push('1. The code is committed and pushed');
                   response.push('2. Files use .tsx, .jsx, .ts, or .js extensions');
                   response.push('3. Components contain "toggle" or "switch" in their code');
                 }
