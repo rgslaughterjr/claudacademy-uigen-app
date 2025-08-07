@@ -11,11 +11,7 @@ permissions:
   contents: read
 
 env:
-  DEFAULT_RESPONSE: |
-    👋 Hello! I'm analyzing your request and will help you resolve this issue.
-    
-    Please give me a moment to examine the details and provide a thorough response.
-  TOGGLE_RESPONSE: |
+  TOGGLE_INITIAL_RESPONSE: |
     I'll help verify the toggle button functionality:
 
     🔍 Areas to check:
@@ -26,6 +22,61 @@ env:
     5. Accessibility compliance
 
     Would you like me to start with any specific aspect?
+
+  STATE_MANAGEMENT_RESPONSE: |
+    Analyzing toggle button state management:
+    
+    1. Checking state initialization
+    2. Verifying state updates on click
+    3. Testing state persistence
+    4. Reviewing prop management
+    5. Validating state synchronization
+    
+    Let me examine the implementation and report back.
+
+  EVENT_HANDLING_RESPONSE: |
+    Analyzing toggle button event handling:
+    
+    1. Click event listeners
+    2. Touch event support
+    3. Keyboard interaction
+    4. Event propagation
+    5. Debounce/throttle implementation
+    
+    I'll check these aspects and provide a detailed report.
+
+  UI_RESPONSE: |
+    Analyzing toggle button UI/UX consistency:
+    
+    1. Visual feedback on state changes
+    2. Transition animations
+    3. Layout stability
+    4. Visual hierarchy
+    5. Interactive states (hover, active, focus)
+    
+    I'll review these elements and suggest any improvements.
+
+  BROWSER_RESPONSE: |
+    Analyzing toggle button browser compatibility:
+    
+    1. Cross-browser event handling
+    2. CSS compatibility
+    3. Performance across browsers
+    4. Mobile responsiveness
+    5. Feature detection
+    
+    I'll test across different environments and report issues.
+
+  ACCESSIBILITY_RESPONSE: |
+    Analyzing toggle button accessibility:
+    
+    1. ARIA attributes
+    2. Keyboard navigation
+    3. Screen reader compatibility
+    4. Color contrast
+    5. Focus management
+    
+    I'll perform an accessibility audit and provide recommendations.
 
 jobs:
   respond-to-mention:
@@ -43,15 +94,34 @@ jobs:
             const issue = context.payload.issue;
             const comment = context.payload.comment;
             const content = comment ? comment.body : issue.body;
+            const lowerContent = content.toLowerCase();
             
-            // Determine the type of request
-            const isToggleRequest = content.toLowerCase().includes('toggle') && 
-                                  content.toLowerCase().includes('verify');
+            let response;
             
-            // Select appropriate response
-            const response = isToggleRequest ? 
-              process.env.TOGGLE_RESPONSE :
-              process.env.DEFAULT_RESPONSE;
+            // Initial toggle verification request
+            if (lowerContent.includes('toggle') && lowerContent.includes('verify')) {
+              response = process.env.TOGGLE_INITIAL_RESPONSE;
+            }
+            // Specific aspect responses
+            else if (lowerContent.includes('state')) {
+              response = process.env.STATE_MANAGEMENT_RESPONSE;
+            }
+            else if (lowerContent.includes('event')) {
+              response = process.env.EVENT_HANDLING_RESPONSE;
+            }
+            else if (lowerContent.includes('ui') || lowerContent.includes('interface')) {
+              response = process.env.UI_RESPONSE;
+            }
+            else if (lowerContent.includes('browser')) {
+              response = process.env.BROWSER_RESPONSE;
+            }
+            else if (lowerContent.includes('access')) {
+              response = process.env.ACCESSIBILITY_RESPONSE;
+            }
+            // Default response for unrecognized requests
+            else {
+              response = process.env.TOGGLE_INITIAL_RESPONSE;
+            }
             
             // Post the response
             await github.rest.issues.createComment({
