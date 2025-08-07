@@ -10,31 +10,6 @@ permissions:
   issues: write
   contents: read
 
-env:
-  TOGGLE_INITIAL_RESPONSE: |
-    I'll help verify the toggle button functionality:
-
-    🔍 Areas to check:
-    1. State management
-    2. Event handling
-    3. UI/UX consistency
-    4. Browser compatibility
-    5. Accessibility compliance
-
-    Would you like me to start with any specific aspect?
-
-  STATE_MANAGEMENT_RESPONSE: |
-    Analyzing toggle button state management 🔄
-
-    **Initial Checklist:**
-    - [ ] State initialization
-    - [ ] Click state updates
-    - [ ] State persistence
-    - [ ] Props management
-    - [ ] State synchronization
-
-    Let me check the implementation...
-
 jobs:
   respond-to-mention:
     runs-on: ubuntu-latest
@@ -47,87 +22,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: recursive
+          submodules: 'true'
 
-      - name: Debug Directory Structure
+      - name: Debug Workspace
         run: |
-          echo "Current directory:"
           pwd
-          echo "\nDirectory contents:"
           ls -la
-          echo "\nRecursive contents:"
-          find . -type f -name "*.ts*" -o -name "*.js*"
+          echo "---"
+          ls -la uigen || echo "uigen directory not found"
 
-      - name: Search and Analyze Code
-        id: analyze
-        run: |
-          # Navigate to uigen directory
-          cd uigen
-          
-          echo "Looking for toggle button implementations..."
-          
-          # Search in src directory for toggle components
-          TOGGLE_FILES=$(find . -type f \( -name "*.tsx" -o -name "*.jsx" -o -name "*.ts" -o -name "*.js" \) -exec grep -l -i "toggle\|switch" {} \; || true)
-          
-          if [ -n "$TOGGLE_FILES" ]; then
-            echo "Found toggle button files:"
-            echo "$TOGGLE_FILES"
-            
-            # Start analysis output
-            {
-              echo "ANALYSIS<<EOF"
-              echo "**Implementation Analysis Results:**"
-              echo ""
-              
-              for file in $TOGGLE_FILES; do
-                echo "📄 Analyzing \`$file\`:"
-                echo ""
-                
-                # Check state management
-                if grep -l "useState\|useReducer\|useContext" "$file" > /dev/null; then
-                  echo "✅ State Management:"
-                  grep -l "useState" "$file" > /dev/null && echo "  - Uses useState for toggle state"
-                  grep -l "useReducer" "$file" > /dev/null && echo "  - Uses useReducer for complex state"
-                  grep -l "useContext" "$file" > /dev/null && echo "  - Uses Context for state sharing"
-                else
-                  echo "❌ No React state management found"
-                fi
-                
-                # Check event handlers
-                if grep -l "onClick\|onChange\|onToggle" "$file" > /dev/null; then
-                  echo "✅ Event Handling:"
-                  grep -l "onClick" "$file" > /dev/null && echo "  - Implements click handling"
-                  grep -l "onChange" "$file" > /dev/null && echo "  - Handles state changes"
-                  grep -l "onToggle" "$file" > /dev/null && echo "  - Custom toggle handler"
-                else
-                  echo "❌ No event handlers found"
-                fi
-                
-                # Check props
-                if grep -l "interface.*Props\|type.*Props" "$file" > /dev/null; then
-                  echo "✅ Props Management:"
-                  echo "  - TypeScript props interface/type defined"
-                else
-                  echo "❌ No TypeScript props definition found"
-                fi
-                
-                echo ""
-              done
-              
-              echo "**Recommendations:**"
-              echo "1. Ensure proper state initialization"
-              echo "2. Add state persistence if needed"
-              echo "3. Consider adding TypeScript types"
-              echo "4. Implement proper event handling"
-              echo ""
-              
-              echo "EOF"
-            } >> $GITHUB_ENV
-          else
-            echo "ANALYSIS=**No Toggle Button Files Found**\n\nCould not locate any toggle button implementations in the codebase. Please check:\n1. The code is committed\n2. The files use .tsx, .jsx, .ts, or .js extensions\n3. The components contain 'toggle' or 'switch' in their name or content" >> $GITHUB_ENV
-          fi
-
-      - name: Post Response
+      - name: Analyze and Respond
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -135,25 +39,80 @@ jobs:
             const issue = context.payload.issue;
             const comment = context.payload.comment;
             const content = comment ? comment.body : issue.body;
-            const lowerContent = content.toLowerCase();
             
-            let response;
+            let response = "";
             
-            // Initial toggle verification request
-            if (lowerContent.includes('toggle') && lowerContent.includes('verify')) {
-              response = process.env.TOGGLE_INITIAL_RESPONSE;
-            }
-            // State management analysis
-            else if (lowerContent.includes('state')) {
-              response = process.env.STATE_MANAGEMENT_RESPONSE + "\n\n" + process.env.ANALYSIS;
-            }
-            else {
-              response = process.env.TOGGLE_INITIAL_RESPONSE;
+            // Check if we're analyzing state management
+            if (content.toLowerCase().includes('state')) {
+              response = `Analyzing toggle button state management 🔄
+
+              **Code Analysis Results:**
+              `;
+              
+              try {
+                // List all relevant files
+                const { execSync } = require('child_process');
+                const findCmd = "find . -type f -name '*.tsx' -o -name '*.jsx' -o -name '*.ts' -o -name '*.js'";
+                const files = execSync(findCmd, { encoding: 'utf8' }).split('\n').filter(Boolean);
+                
+                response += `\nFound ${files.length} potential files to analyze.\n`;
+                
+                let toggleFiles = [];
+                
+                // Find toggle-related files
+                for (const file of files) {
+                  try {
+                    const content = require('fs').readFileSync(file, 'utf8');
+                    if (content.includes('toggle') || content.includes('switch')) {
+                      toggleFiles.push(file);
+                      response += `\n📄 Found toggle implementation in \`${file}\`:\n`;
+                      
+                      // Check state management
+                      if (content.includes('useState')) {
+                        response += '✅ Uses React useState hook\n';
+                      }
+                      if (content.includes('useReducer')) {
+                        response += '✅ Uses React useReducer hook\n';
+                      }
+                      if (content.includes('useContext')) {
+                        response += '✅ Uses React Context\n';
+                      }
+                      
+                      // Check props/types
+                      if (content.includes('interface') || content.includes('type')) {
+                        response += '✅ Has TypeScript definitions\n';
+                      }
+                    }
+                  } catch (error) {
+                    console.error(`Error reading ${file}:`, error);
+                  }
+                }
+                
+                if (toggleFiles.length === 0) {
+                  response += '\n⚠️ No toggle button implementations found. Make sure:\n';
+                  response += '1. The code is committed\n';
+                  response += '2. Files use .tsx, .jsx, .ts, or .js extensions\n';
+                  response += '3. Components contain "toggle" or "switch" in their code\n';
+                }
+                
+              } catch (error) {
+                response += '\n❌ Error analyzing code: ' + error.message + '\n';
+                response += 'Please check that the repository is properly cloned and accessible.\n';
+              }
+            } else {
+              // Default response for other mentions
+              response = `👋 I can help analyze your toggle button implementation. Please specify what you'd like me to check:
+
+              1. Type "@claude check state management" - I'll analyze state handling
+              2. Type "@claude check events" - I'll check event handling
+              3. Type "@claude check ui" - I'll review UI/UX
+              4. Type "@claude check accessibility" - I'll verify accessibility features`;
             }
             
+            // Always post a response
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: response
+              body: response.replace(/^ +/gm, '') // Remove leading spaces
             });
