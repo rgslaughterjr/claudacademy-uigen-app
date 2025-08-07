@@ -24,59 +24,16 @@ env:
     Would you like me to start with any specific aspect?
 
   STATE_MANAGEMENT_RESPONSE: |
-    Analyzing toggle button state management:
-    
-    1. Checking state initialization
-    2. Verifying state updates on click
-    3. Testing state persistence
-    4. Reviewing prop management
-    5. Validating state synchronization
-    
-    Let me analyze the implementation...
+    Analyzing toggle button state management 🔄
 
-  EVENT_HANDLING_RESPONSE: |
-    Analyzing toggle button event handling:
-    
-    1. Click event listeners
-    2. Touch event support
-    3. Keyboard interaction
-    4. Event propagation
-    5. Debounce/throttle implementation
-    
-    Let me analyze the implementation...
+    **Initial Checklist:**
+    - [ ] State initialization
+    - [ ] Click state updates
+    - [ ] State persistence
+    - [ ] Props management
+    - [ ] State synchronization
 
-  UI_RESPONSE: |
-    Analyzing toggle button UI/UX consistency:
-    
-    1. Visual feedback on state changes
-    2. Transition animations
-    3. Layout stability
-    4. Visual hierarchy
-    5. Interactive states (hover, active, focus)
-    
-    Let me analyze the implementation...
-
-  BROWSER_RESPONSE: |
-    Analyzing toggle button browser compatibility:
-    
-    1. Cross-browser event handling
-    2. CSS compatibility
-    3. Performance across browsers
-    4. Mobile responsiveness
-    5. Feature detection
-    
-    Let me analyze the implementation...
-
-  ACCESSIBILITY_RESPONSE: |
-    Analyzing toggle button accessibility:
-    
-    1. ARIA attributes
-    2. Keyboard navigation
-    3. Screen reader compatibility
-    4. Color contrast
-    5. Focus management
-    
-    Let me analyze the implementation...
+    Let me check the implementation...
 
 jobs:
   respond-to-mention:
@@ -91,36 +48,56 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Find Toggle Button Files
-        id: find-files
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const { execSync } = require('child_process');
-            
-            // Search for toggle button related files
-            const findToggleFiles = () => {
-              try {
-                const grepCmd = "find . -type f -name '*.tsx' -o -name '*.jsx' -o -name '*.js' | xargs grep -l 'toggle'";
-                return execSync(grepCmd, { encoding: 'utf8' }).split('\n').filter(Boolean);
-              } catch (error) {
-                console.log('No toggle files found:', error);
-                return [];
-              }
-            };
-            
-            const files = findToggleFiles();
-            core.setOutput('files', JSON.stringify(files));
-
-      - name: Analyze Implementation
+      - name: Search and Analyze Code
         id: analyze
+        run: |
+          # Find toggle button files
+          echo "Looking for toggle button implementations..."
+          TOGGLE_FILES=$(find . -type f \( -name "*.tsx" -o -name "*.jsx" -o -name "*.ts" -o -name "*.js" \) -exec grep -l "toggle" {} \;)
+          
+          if [ -n "$TOGGLE_FILES" ]; then
+            echo "Found toggle button files:"
+            echo "$TOGGLE_FILES"
+            
+            # Analyze implementations
+            echo "ANALYSIS<<EOF" >> $GITHUB_ENV
+            echo "**Implementation Analysis:**" >> $GITHUB_ENV
+            echo "" >> $GITHUB_ENV
+            
+            for file in $TOGGLE_FILES; do
+              echo "Analyzing $file..." >> $GITHUB_ENV
+              
+              # Check state management
+              if grep -q "useState\|useReducer" "$file"; then
+                echo "✅ Found state management:" >> $GITHUB_ENV
+                if grep -q "useState" "$file"; then
+                  echo "- Uses useState for state updates" >> $GITHUB_ENV
+                fi
+                if grep -q "useReducer" "$file"; then
+                  echo "- Uses useReducer for complex state" >> $GITHUB_ENV
+                fi
+              fi
+              
+              # Check event handling
+              if grep -q "onClick\|onChange" "$file"; then
+                echo "✅ Found event handlers:" >> $GITHUB_ENV
+                if grep -q "onClick" "$file"; then
+                  echo "- Implements click handling" >> $GITHUB_ENV
+                fi
+                if grep -q "onChange" "$file"; then
+                  echo "- Handles state changes" >> $GITHUB_ENV
+                fi
+              fi
+              
+              echo "" >> $GITHUB_ENV
+            done
+            
+            echo "EOF" >> $GITHUB_ENV
+          else
+            echo "ANALYSIS=No toggle button implementation files found. Please ensure the code is committed." >> $GITHUB_ENV
+          fi
+
+      - name: Post Response
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -130,11 +107,7 @@ jobs:
             const content = comment ? comment.body : issue.body;
             const lowerContent = content.toLowerCase();
             
-            // Get files from previous step
-            const files = JSON.parse(process.env.TOGGLE_FILES || '[]');
-            
             let response;
-            let analysis = '';
             
             // Initial toggle verification request
             if (lowerContent.includes('toggle') && lowerContent.includes('verify')) {
@@ -142,120 +115,15 @@ jobs:
             }
             // State management analysis
             else if (lowerContent.includes('state')) {
-              response = process.env.STATE_MANAGEMENT_RESPONSE;
-              
-              if (files.length > 0) {
-                analysis = '\n\n**Implementation Analysis:**\n';
-                for (const file of files) {
-                  try {
-                    const content = require('fs').readFileSync(file, 'utf8');
-                    if (content.includes('useState') || content.includes('useReducer')) {
-                      analysis += `\nFound state management in ${file}:\n`;
-                      analysis += '- Using React hooks for state\n';
-                      if (content.includes('useState')) analysis += '- State updates via useState\n';
-                      if (content.includes('useReducer')) analysis += '- Complex state via useReducer\n';
-                    }
-                  } catch (error) {
-                    console.error(`Error reading ${file}:`, error);
-                  }
-                }
-              }
+              response = process.env.STATE_MANAGEMENT_RESPONSE + "\n\n" + process.env.ANALYSIS;
             }
-            // Event handling analysis
-            else if (lowerContent.includes('event')) {
-              response = process.env.EVENT_HANDLING_RESPONSE;
-              
-              if (files.length > 0) {
-                analysis = '\n\n**Implementation Analysis:**\n';
-                for (const file of files) {
-                  try {
-                    const content = require('fs').readFileSync(file, 'utf8');
-                    if (content.includes('onClick') || content.includes('onKeyPress')) {
-                      analysis += `\nFound event handlers in ${file}:\n`;
-                      if (content.includes('onClick')) analysis += '- Click handling implemented\n';
-                      if (content.includes('onKeyPress')) analysis += '- Keyboard handling implemented\n';
-                      if (content.includes('onTouch')) analysis += '- Touch events implemented\n';
-                    }
-                  } catch (error) {
-                    console.error(`Error reading ${file}:`, error);
-                  }
-                }
-              }
-            }
-            // UI analysis
-            else if (lowerContent.includes('ui') || lowerContent.includes('interface')) {
-              response = process.env.UI_RESPONSE;
-              
-              if (files.length > 0) {
-                analysis = '\n\n**Implementation Analysis:**\n';
-                for (const file of files) {
-                  try {
-                    const content = require('fs').readFileSync(file, 'utf8');
-                    analysis += `\nAnalyzing UI in ${file}:\n`;
-                    if (content.includes('transition')) analysis += '- Has transition animations\n';
-                    if (content.includes(':hover')) analysis += '- Implements hover states\n';
-                    if (content.includes(':focus')) analysis += '- Has focus styles\n';
-                  } catch (error) {
-                    console.error(`Error reading ${file}:`, error);
-                  }
-                }
-              }
-            }
-            // Browser compatibility analysis
-            else if (lowerContent.includes('browser')) {
-              response = process.env.BROWSER_RESPONSE;
-              
-              if (files.length > 0) {
-                analysis = '\n\n**Implementation Analysis:**\n';
-                for (const file of files) {
-                  try {
-                    const content = require('fs').readFileSync(file, 'utf8');
-                    analysis += `\nChecking compatibility in ${file}:\n`;
-                    if (content.includes('@media')) analysis += '- Has responsive design\n';
-                    if (content.includes('webkit') || content.includes('moz')) analysis += '- Uses vendor prefixes\n';
-                  } catch (error) {
-                    console.error(`Error reading ${file}:`, error);
-                  }
-                }
-              }
-            }
-            // Accessibility analysis
-            else if (lowerContent.includes('access')) {
-              response = process.env.ACCESSIBILITY_RESPONSE;
-              
-              if (files.length > 0) {
-                analysis = '\n\n**Implementation Analysis:**\n';
-                for (const file of files) {
-                  try {
-                    const content = require('fs').readFileSync(file, 'utf8');
-                    analysis += `\nChecking accessibility in ${file}:\n`;
-                    if (content.includes('aria-')) analysis += '- Uses ARIA attributes\n';
-                    if (content.includes('role=')) analysis += '- Has role definitions\n';
-                    if (content.includes('tabIndex')) analysis += '- Implements keyboard navigation\n';
-                  } catch (error) {
-                    console.error(`Error reading ${file}:`, error);
-                  }
-                }
-              }
-            }
-            // Default response
             else {
               response = process.env.TOGGLE_INITIAL_RESPONSE;
             }
             
-            // Add file analysis if available
-            if (analysis) {
-              response += analysis;
-            } else if (files.length === 0) {
-              response += '\n\n**Note:** No toggle button implementation files found. Please ensure the code is committed.';
-            }
-            
-            // Post the response
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
               body: response
             });
-        env:
-          TOGGLE_FILES: ${{ steps.find-files.outputs.files }}
