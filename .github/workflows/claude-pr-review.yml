@@ -31,35 +31,39 @@ jobs:
             let response;
             
             if (lowerContent.includes('state')) {
-              response = `🔍 State Management Analysis:
-
-1. Component State:
-   - Toggle state initialization
-   - State updates on click
-   - State persistence
-   - State synchronization
-
-2. Props:
-   - TypeScript interfaces
-   - Default values
-   - Props validation
-
-3. Event Handling:
-   - Click handlers
-   - Change events
-   - Custom events
-
-Would you like me to examine any specific aspect?`;
+              response = [
+                '🔍 State Management Analysis:',
+                '',
+                '1. Component State:',
+                '   - Toggle state initialization',
+                '   - State updates on click',
+                '   - State persistence',
+                '   - State synchronization',
+                '',
+                '2. Props:',
+                '   - TypeScript interfaces',
+                '   - Default values',
+                '   - Props validation',
+                '',
+                '3. Event Handling:',
+                '   - Click handlers',
+                '   - Change events',
+                '   - Custom events',
+                '',
+                'Would you like me to examine any specific aspect?'
+              ].join('\n');
             } else {
-              response = `👋 I can help analyze your toggle button! What would you like me to check?
-
-Choose a command:
-- "@claude check state" - Analyze state management
-- "@claude check events" - Review event handling
-- "@claude check ui" - Examine UI/UX
-- "@claude check accessibility" - Verify accessibility
-
-Let me know which aspect to focus on!`;
+              response = [
+                '👋 I can help analyze your toggle button! What would you like me to check?',
+                '',
+                'Choose a command:',
+                '- "@claude check state" - Analyze state management',
+                '- "@claude check events" - Review event handling',
+                '- "@claude check ui" - Examine UI/UX',
+                '- "@claude check accessibility" - Verify accessibility',
+                '',
+                'Let me know which aspect to focus on!'
+              ].join('\n');
             }
             
             await github.rest.issues.createComment({
