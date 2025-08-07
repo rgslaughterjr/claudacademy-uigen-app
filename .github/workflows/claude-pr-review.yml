@@ -18,7 +18,7 @@ jobs:
       contains(github.event.comment.body, '@claude')
     
     steps:
-      - name: Analyze and Respond
+      - name: Post Response
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -33,31 +33,33 @@ jobs:
             if (lowerContent.includes('state')) {
               response = `🔍 State Management Analysis:
 
-1. Component state handlers:
-   - useState for toggle state
-   - useEffect for side effects
-   - Context for shared state
+1. Component State:
+   - Toggle state initialization
+   - State updates on click
+   - State persistence
+   - State synchronization
 
-2. Event handling:
-   - onClick handlers
-   - onChange events
-   - Custom events
-
-3. Props management:
+2. Props:
    - TypeScript interfaces
    - Default values
-   - Prop validation
+   - Props validation
 
-Would you like me to focus on any specific aspect?`;
+3. Event Handling:
+   - Click handlers
+   - Change events
+   - Custom events
+
+Would you like me to examine any specific aspect?`;
             } else {
-              response = `👋 I can help analyze your toggle button implementation. Please specify what you'd like me to check:
+              response = `👋 I can help analyze your toggle button! What would you like me to check?
 
-1. "@claude check state" - Analyze state management
-2. "@claude check events" - Review event handling
-3. "@claude check ui" - Examine UI/UX
-4. "@claude check accessibility" - Verify accessibility
+Choose a command:
+- "@claude check state" - Analyze state management
+- "@claude check events" - Review event handling
+- "@claude check ui" - Examine UI/UX
+- "@claude check accessibility" - Verify accessibility
 
-Let me know which aspect you'd like me to examine!`;
+Let me know which aspect to focus on!`;
             }
             
             await github.rest.issues.createComment({
