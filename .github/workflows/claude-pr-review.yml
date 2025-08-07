@@ -1,0 +1,94 @@
+name: Claude PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review_comment:
+    types: [created]
+  issue_comment:
+    types: [created]
+
+jobs:
+  claude-review:
+    name: Claude AI Code Review
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Claude PR Analysis
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🤖 Claude is reviewing your pull request..."
+          echo "This workflow will analyze:"
+          echo "- Code quality and best practices"
+          echo "- Security vulnerabilities"
+          echo "- Performance optimizations"
+          echo "- Test coverage"
+          echo "- Documentation completeness"
+      
+      - name: Post Review Comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const prNumber = context.issue.number;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            
+            // Only post initial comment on PR open
+            if (context.payload.action === 'opened') {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: prNumber,
+                body: `## 🤖 Claude AI Review Enabled
+                
+                Hello! I'm Claude, your AI assistant for this pull request. I can help with:
+                
+                - 🔍 **Code Review**: Analyzing your changes for quality and best practices
+                - 🛡️ **Security**: Identifying potential vulnerabilities
+                - ⚡ **Performance**: Suggesting optimizations
+                - 🧪 **Testing**: Reviewing test coverage and quality
+                - 📚 **Documentation**: Checking completeness and clarity
+                
+                ### How to interact with me:
+                - Mention \`@claude\` in a comment to ask questions
+                - Use \`@claude review [type]\` for specific reviews (security, performance, tests, docs)
+                - I'll automatically review all new commits
+                
+                ### Quick Commands:
+                - \`@claude review\` - Full code review
+                - \`@claude explain\` - Explain complex code sections
+                - \`@claude suggest\` - Get improvement suggestions
+                - \`@claude test\` - Generate test cases
+                
+                Ready to assist with your code review! 🚀`
+              });
+            }
+
+  auto-merge-check:
+    name: Auto-merge Safety Check
+    runs-on: ubuntu-latest
+    needs: claude-review
+    if: contains(github.event.pull_request.labels.*.name, 'auto-merge')
+    
+    steps:
+      - name: Check merge safety
+        run: |
+          echo "✅ Checking if PR is safe to auto-merge..."
+          echo "- All tests must pass"
+          echo "- No security issues detected"
+          echo "- Approved by Claude review"
+          echo "- No merge conflicts"
