@@ -5,6 +5,7 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   NODE_ENV: development
   PORT: 3000
+  CLAUDE_DEBUG: true
 
 # Tools and instructions for Claude when running in GitHub Actions
 claude:
@@ -42,14 +43,14 @@ claude:
     set of tools to launch a browser and interact with the app.
 
 on:
+  issues:
+    types: [opened, edited, reopened]
+  issue_comment:
+    types: [created]
   pull_request:
     types: [opened, synchronize, reopened]
   pull_request_review_comment:
     types: [created]
-  issue_comment:
-    types: [created]
-  issues:
-    types: [opened, edited]
 
 permissions:
   issues: write
@@ -61,8 +62,10 @@ jobs:
     name: Claude Issue Response
     runs-on: ubuntu-latest
     if: |
-      (github.event_name == 'issues' && github.event.action == 'opened') ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+      (github.event_name == 'issues') ||
+      (github.event_name == 'issue_comment' && 
+       (contains(github.event.comment.body, '@claude') || 
+        contains(github.event.comment.body, '@Claude')))
     
     steps:
       - name: Checkout code
@@ -78,8 +81,19 @@ jobs:
 
       - name: Install dependencies
         run: |
+          echo "Installing dependencies..."
           npm ci
           npm install -g @anthropic-ai/claude-code
+          echo "Dependencies installed successfully"
+
+      - name: Debug Event Info
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Event action: ${{ github.event.action }}"
+          echo "Issue number: ${{ github.event.issue.number }}"
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            echo "Comment body: ${{ github.event.comment.body }}"
+          fi
 
       - name: Handle Issue Response
         uses: actions/github-script@v7
@@ -89,34 +103,56 @@ jobs:
             const issue = context.payload.issue;
             const comment = context.payload.comment;
             
+            console.log('Processing event:', {
+              eventName: context.eventName,
+              action: context.payload.action,
+              issueNumber: issue?.number,
+              commentBody: comment?.body
+            });
+            
             // Function to process Claude's response
             async function processClaudeResponse(prompt) {
+              console.log('Processing Claude response for prompt:', prompt);
               const claude = require('@anthropic-ai/claude-code');
               const response = await claude.complete({
                 prompt: prompt,
-                max_tokens: 1000
+                max_tokens: 1000,
+                model: 'claude-3-5-sonnet-20241022'
               });
               return response.choices[0].text;
             }
             
             let responseText;
-            if (context.eventName === 'issues' && context.payload.action === 'opened') {
-              // New issue created
-              const prompt = `Please help with this issue:\n${issue.title}\n${issue.body}`;
-              responseText = await processClaudeResponse(prompt);
-            } else if (context.eventName === 'issue_comment') {
-              // @claude mentioned in comment
-              const prompt = `Please respond to this comment:\n${comment.body}`;
-              responseText = await processClaudeResponse(prompt);
+            try {
+              if (context.eventName === 'issues') {
+                // New issue created
+                const prompt = `Please help with this issue:\n${issue.title}\n${issue.body}`;
+                responseText = await processClaudeResponse(prompt);
+              } else if (context.eventName === 'issue_comment') {
+                // @claude mentioned in comment
+                const prompt = `Please respond to this comment:\n${comment.body}`;
+                responseText = await processClaudeResponse(prompt);
+              }
+              
+              // Post Claude's response
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `🤖 **Claude's Response**\n\n${responseText}`
+              });
+              
+              console.log('Response posted successfully');
+              
+            } catch (error) {
+              console.error('Error processing response:', error);
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: `❌ **Error**: I encountered an error while processing this request. Please check the workflow logs for details.`
+              });
             }
-            
-            // Post Claude's response
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issue.number,
-              body: `🤖 **Claude's Response**\n\n${responseText}`
-            });
 
   claude-review:
     name: Claude AI Code Review
