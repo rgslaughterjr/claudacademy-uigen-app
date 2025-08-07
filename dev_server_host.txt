@@ -1,0 +1,21 @@
+Despite the module resolution errors showing in the output, the Next.js development server is actually running
+  successfully! You can see at the bottom:
+
+  ▲ Next.js 15.4.5 (Turbopack)
+  - Local:        http://localhost:3000
+  - Network:      http://192.168.86.246:3000
+  - Environments: .env
+
+  ✓ Starting...
+  ✓ Compiled middleware in 383ms
+  ✓ Ready in 3.1s
+
+  Yes, you can now access your project at http://localhost:3000
+
+# add to memory
+  ⎿  Good to know.
+
+> npm run dev
+
+● I understand you've run npm run dev locally. The development server should now be running at
+  http://localhost:3000.

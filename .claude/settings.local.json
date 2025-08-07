@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run setup:*)",
+      "Bash(npm install)",
+      "Bash(rmdir:*)",
+      "Bash(cmd /c \"rmdir /s /q node_modules\")",
+      "Bash(npm cache clean:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(npx prisma migrate:*)",
+      "Bash(npm run dev:*)",
+      "Bash(npm install:*)",
+      "Bash(rm:*)",
+      "Bash(npm rebuild:*)",
+          ],
+    "deny": []
+  }
+}
+{
+  "permissions": {
+    "allow": [mcp__playwright"],
+    "deny": []
+  }
+}
