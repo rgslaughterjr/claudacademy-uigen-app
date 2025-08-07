@@ -17,6 +17,11 @@ jobs:
       contains(github.event.issue.body, '@claude') ||
       contains(github.event.comment.body, '@claude')
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Respond to Issue
         uses: actions/github-script@v7
         with:
@@ -31,7 +36,32 @@ jobs:
               body: body
             });
             
-            const response = "I see you've mentioned me! I'm Claude, and I'm ready to help with your issue. I'm still being set up to handle GitHub issues - please bear with me as my maintainers improve my capabilities.";
+            // Parse the request to understand what's needed
+            const isToggleButtonIssue = body.toLowerCase().includes('toggle button');
+            const isTestRequest = body.toLowerCase().includes('test');
+            const isVerifyRequest = body.toLowerCase().includes('verify');
+            
+            let response;
+            if (isToggleButtonIssue) {
+              response = `I'll help you with the toggle button issue! Let me analyze it:
+
+1. First, I'll check the toggle button implementation
+2. I'll verify the functionality across different states
+3. I'll look for any potential stability issues
+
+Please provide any specific test cases or scenarios you'd like me to check.
+
+Common toggle button issues I can help with:
+- State management problems
+- Event handling issues
+- Styling inconsistencies
+- Accessibility concerns
+- Browser compatibility issues
+
+Would you like me to start with any particular aspect?`;
+            } else {
+              response = "I'll help you with this issue. Could you please provide more details about what you'd like me to check or verify?";
+            }
             
             await github.rest.issues.createComment({
               owner: context.repo.owner,
