@@ -64,3 +64,7 @@ MIT
 ---
 
 Built with Claude Code 🤖
+
+## 🧪 Testing PR Template
+
+This line was added to test the GitHub PR template and Claude integration.
