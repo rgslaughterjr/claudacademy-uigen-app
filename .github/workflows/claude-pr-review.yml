@@ -18,23 +18,17 @@ jobs:
       contains(github.event.comment.body, '@claude')
     
     steps:
-      - name: Checkout code
+      - name: Checkout main repo
         uses: actions/checkout@v4
         with:
-          repository: ${{ github.repository }}
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-          submodules: recursive
+          path: main-repo
 
-      - name: Initialize uigen
-        run: |
-          echo "Setting up uigen directory..."
-          if [ ! -d "uigen" ]; then
-            git clone https://github.com/rgslaughterjr/uigen.git uigen
-          fi
-          cd uigen
-          ls -la
+      - name: Checkout uigen repo
+        uses: actions/checkout@v4
+        with:
+          repository: rgslaughterjr/uigen
+          path: uigen
+          token: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Analyze and Respond
         uses: actions/github-script@v7
@@ -55,15 +49,19 @@ jobs:
               response.push('🔍 Analyzing Toggle Button State Management...\n');
               
               try {
+                // Debug directory contents
+                const lsOutput = execSync('ls -la uigen', { encoding: 'utf8' });
+                response.push('📂 UIGen repository contents:\n```\n' + lsOutput + '\n```\n');
+                
                 // Look for toggle button files
-                const findCmd = "cd uigen && find . -type f -name '*.tsx' -o -name '*.jsx' -o -name '*.ts' -o -name '*.js'";
+                const findCmd = "find uigen -type f -name '*.tsx' -o -name '*.jsx' -o -name '*.ts' -o -name '*.js'";
                 const files = execSync(findCmd, { encoding: 'utf8' }).split('\n').filter(Boolean);
                 
                 response.push(`Found ${files.length} code files to analyze.`);
                 
                 const toggleFiles = files.filter(file => {
                   try {
-                    const content = fs.readFileSync('uigen/' + file, 'utf8');
+                    const content = fs.readFileSync(file, 'utf8');
                     return content.toLowerCase().includes('toggle') || content.toLowerCase().includes('switch');
                   } catch (error) {
                     response.push(`⚠️ Error reading ${file}: ${error.message}`);
@@ -75,7 +73,7 @@ jobs:
                   response.push('\n📁 Found toggle button implementations:');
                   
                   for (const file of toggleFiles) {
-                    const content = fs.readFileSync('uigen/' + file, 'utf8');
+                    const content = fs.readFileSync(file, 'utf8');
                     response.push(`\n**${file}**`);
                     
                     // Check state management
@@ -111,9 +109,9 @@ jobs:
                   response.push('4. Consider state persistence');
                   
                 } else {
-                  response.push('\n⚠️ No toggle button implementations found in uigen directory.');
+                  response.push('\n⚠️ No toggle button implementations found in repository.');
                   response.push('\nPlease check that:');
-                  response.push('1. The code is committed and pushed to the uigen repository');
+                  response.push('1. The code is committed and pushed');
                   response.push('2. Files use .tsx, .jsx, .ts, or .js extensions');
                   response.push('3. Components contain "toggle" or "switch" in their code');
                 }
@@ -121,7 +119,7 @@ jobs:
               } catch (error) {
                 response.push('❌ Error analyzing code:');
                 response.push(error.message);
-                response.push('\nPlease ensure the uigen repository is properly configured.');
+                response.push('\nPlease ensure both repositories are accessible.');
               }
               
             } else {
