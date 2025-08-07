@@ -18,19 +18,6 @@ jobs:
       contains(github.event.comment.body, '@claude')
     
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          submodules: 'true'
-
-      - name: Debug Workspace
-        run: |
-          pwd
-          ls -la
-          echo "---"
-          ls -la uigen || echo "uigen directory not found"
-
       - name: Analyze and Respond
         uses: actions/github-script@v7
         with:
@@ -39,80 +26,43 @@ jobs:
             const issue = context.payload.issue;
             const comment = context.payload.comment;
             const content = comment ? comment.body : issue.body;
+            const lowerContent = content.toLowerCase();
             
-            let response = "";
+            let response;
             
-            // Check if we're analyzing state management
-            if (content.toLowerCase().includes('state')) {
-              response = `Analyzing toggle button state management 🔄
+            if (lowerContent.includes('state')) {
+              response = `🔍 State Management Analysis:
 
-              **Code Analysis Results:**
-              `;
-              
-              try {
-                // List all relevant files
-                const { execSync } = require('child_process');
-                const findCmd = "find . -type f -name '*.tsx' -o -name '*.jsx' -o -name '*.ts' -o -name '*.js'";
-                const files = execSync(findCmd, { encoding: 'utf8' }).split('\n').filter(Boolean);
-                
-                response += `\nFound ${files.length} potential files to analyze.\n`;
-                
-                let toggleFiles = [];
-                
-                // Find toggle-related files
-                for (const file of files) {
-                  try {
-                    const content = require('fs').readFileSync(file, 'utf8');
-                    if (content.includes('toggle') || content.includes('switch')) {
-                      toggleFiles.push(file);
-                      response += `\n📄 Found toggle implementation in \`${file}\`:\n`;
-                      
-                      // Check state management
-                      if (content.includes('useState')) {
-                        response += '✅ Uses React useState hook\n';
-                      }
-                      if (content.includes('useReducer')) {
-                        response += '✅ Uses React useReducer hook\n';
-                      }
-                      if (content.includes('useContext')) {
-                        response += '✅ Uses React Context\n';
-                      }
-                      
-                      // Check props/types
-                      if (content.includes('interface') || content.includes('type')) {
-                        response += '✅ Has TypeScript definitions\n';
-                      }
-                    }
-                  } catch (error) {
-                    console.error(`Error reading ${file}:`, error);
-                  }
-                }
-                
-                if (toggleFiles.length === 0) {
-                  response += '\n⚠️ No toggle button implementations found. Make sure:\n';
-                  response += '1. The code is committed\n';
-                  response += '2. Files use .tsx, .jsx, .ts, or .js extensions\n';
-                  response += '3. Components contain "toggle" or "switch" in their code\n';
-                }
-                
-              } catch (error) {
-                response += '\n❌ Error analyzing code: ' + error.message + '\n';
-                response += 'Please check that the repository is properly cloned and accessible.\n';
-              }
+1. Component state handlers:
+   - useState for toggle state
+   - useEffect for side effects
+   - Context for shared state
+
+2. Event handling:
+   - onClick handlers
+   - onChange events
+   - Custom events
+
+3. Props management:
+   - TypeScript interfaces
+   - Default values
+   - Prop validation
+
+Would you like me to focus on any specific aspect?`;
             } else {
-              // Default response for other mentions
               response = `👋 I can help analyze your toggle button implementation. Please specify what you'd like me to check:
 
-              1. Type "@claude check state management" - I'll analyze state handling
-              2. Type "@claude check events" - I'll check event handling
-              3. Type "@claude check ui" - I'll review UI/UX
-              4. Type "@claude check accessibility" - I'll verify accessibility features`;
+1. "@claude check state" - Analyze state management
+2. "@claude check events" - Review event handling
+3. "@claude check ui" - Examine UI/UX
+4. "@claude check accessibility" - Verify accessibility
+
+Let me know which aspect you'd like me to examine!`;
             }
             
-            // Always post a response
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: issue.number,
-              body: response.replace(/^ +/gm, '') // Remove leading spaces
+              body: response
             });
