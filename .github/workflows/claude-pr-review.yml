@@ -32,7 +32,7 @@ env:
     4. Reviewing prop management
     5. Validating state synchronization
     
-    Let me examine the implementation and report back.
+    Let me analyze the implementation...
 
   EVENT_HANDLING_RESPONSE: |
     Analyzing toggle button event handling:
@@ -43,7 +43,7 @@ env:
     4. Event propagation
     5. Debounce/throttle implementation
     
-    I'll check these aspects and provide a detailed report.
+    Let me analyze the implementation...
 
   UI_RESPONSE: |
     Analyzing toggle button UI/UX consistency:
@@ -54,7 +54,7 @@ env:
     4. Visual hierarchy
     5. Interactive states (hover, active, focus)
     
-    I'll review these elements and suggest any improvements.
+    Let me analyze the implementation...
 
   BROWSER_RESPONSE: |
     Analyzing toggle button browser compatibility:
@@ -65,7 +65,7 @@ env:
     4. Mobile responsiveness
     5. Feature detection
     
-    I'll test across different environments and report issues.
+    Let me analyze the implementation...
 
   ACCESSIBILITY_RESPONSE: |
     Analyzing toggle button accessibility:
@@ -76,7 +76,7 @@ env:
     4. Color contrast
     5. Focus management
     
-    I'll perform an accessibility audit and provide recommendations.
+    Let me analyze the implementation...
 
 jobs:
   respond-to-mention:
@@ -86,7 +86,41 @@ jobs:
       contains(github.event.comment.body, '@claude')
     
     steps:
-      - name: Process Response
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Find Toggle Button Files
+        id: find-files
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { execSync } = require('child_process');
+            
+            // Search for toggle button related files
+            const findToggleFiles = () => {
+              try {
+                const grepCmd = "find . -type f -name '*.tsx' -o -name '*.jsx' -o -name '*.js' | xargs grep -l 'toggle'";
+                return execSync(grepCmd, { encoding: 'utf8' }).split('\n').filter(Boolean);
+              } catch (error) {
+                console.log('No toggle files found:', error);
+                return [];
+              }
+            };
+            
+            const files = findToggleFiles();
+            core.setOutput('files', JSON.stringify(files));
+
+      - name: Analyze Implementation
+        id: analyze
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
@@ -96,31 +130,124 @@ jobs:
             const content = comment ? comment.body : issue.body;
             const lowerContent = content.toLowerCase();
             
+            // Get files from previous step
+            const files = JSON.parse(process.env.TOGGLE_FILES || '[]');
+            
             let response;
+            let analysis = '';
             
             // Initial toggle verification request
             if (lowerContent.includes('toggle') && lowerContent.includes('verify')) {
               response = process.env.TOGGLE_INITIAL_RESPONSE;
             }
-            // Specific aspect responses
+            // State management analysis
             else if (lowerContent.includes('state')) {
               response = process.env.STATE_MANAGEMENT_RESPONSE;
+              
+              if (files.length > 0) {
+                analysis = '\n\n**Implementation Analysis:**\n';
+                for (const file of files) {
+                  try {
+                    const content = require('fs').readFileSync(file, 'utf8');
+                    if (content.includes('useState') || content.includes('useReducer')) {
+                      analysis += `\nFound state management in ${file}:\n`;
+                      analysis += '- Using React hooks for state\n';
+                      if (content.includes('useState')) analysis += '- State updates via useState\n';
+                      if (content.includes('useReducer')) analysis += '- Complex state via useReducer\n';
+                    }
+                  } catch (error) {
+                    console.error(`Error reading ${file}:`, error);
+                  }
+                }
+              }
             }
+            // Event handling analysis
             else if (lowerContent.includes('event')) {
               response = process.env.EVENT_HANDLING_RESPONSE;
+              
+              if (files.length > 0) {
+                analysis = '\n\n**Implementation Analysis:**\n';
+                for (const file of files) {
+                  try {
+                    const content = require('fs').readFileSync(file, 'utf8');
+                    if (content.includes('onClick') || content.includes('onKeyPress')) {
+                      analysis += `\nFound event handlers in ${file}:\n`;
+                      if (content.includes('onClick')) analysis += '- Click handling implemented\n';
+                      if (content.includes('onKeyPress')) analysis += '- Keyboard handling implemented\n';
+                      if (content.includes('onTouch')) analysis += '- Touch events implemented\n';
+                    }
+                  } catch (error) {
+                    console.error(`Error reading ${file}:`, error);
+                  }
+                }
+              }
             }
+            // UI analysis
             else if (lowerContent.includes('ui') || lowerContent.includes('interface')) {
               response = process.env.UI_RESPONSE;
+              
+              if (files.length > 0) {
+                analysis = '\n\n**Implementation Analysis:**\n';
+                for (const file of files) {
+                  try {
+                    const content = require('fs').readFileSync(file, 'utf8');
+                    analysis += `\nAnalyzing UI in ${file}:\n`;
+                    if (content.includes('transition')) analysis += '- Has transition animations\n';
+                    if (content.includes(':hover')) analysis += '- Implements hover states\n';
+                    if (content.includes(':focus')) analysis += '- Has focus styles\n';
+                  } catch (error) {
+                    console.error(`Error reading ${file}:`, error);
+                  }
+                }
+              }
             }
+            // Browser compatibility analysis
             else if (lowerContent.includes('browser')) {
               response = process.env.BROWSER_RESPONSE;
+              
+              if (files.length > 0) {
+                analysis = '\n\n**Implementation Analysis:**\n';
+                for (const file of files) {
+                  try {
+                    const content = require('fs').readFileSync(file, 'utf8');
+                    analysis += `\nChecking compatibility in ${file}:\n`;
+                    if (content.includes('@media')) analysis += '- Has responsive design\n';
+                    if (content.includes('webkit') || content.includes('moz')) analysis += '- Uses vendor prefixes\n';
+                  } catch (error) {
+                    console.error(`Error reading ${file}:`, error);
+                  }
+                }
+              }
             }
+            // Accessibility analysis
             else if (lowerContent.includes('access')) {
               response = process.env.ACCESSIBILITY_RESPONSE;
+              
+              if (files.length > 0) {
+                analysis = '\n\n**Implementation Analysis:**\n';
+                for (const file of files) {
+                  try {
+                    const content = require('fs').readFileSync(file, 'utf8');
+                    analysis += `\nChecking accessibility in ${file}:\n`;
+                    if (content.includes('aria-')) analysis += '- Uses ARIA attributes\n';
+                    if (content.includes('role=')) analysis += '- Has role definitions\n';
+                    if (content.includes('tabIndex')) analysis += '- Implements keyboard navigation\n';
+                  } catch (error) {
+                    console.error(`Error reading ${file}:`, error);
+                  }
+                }
+              }
             }
-            // Default response for unrecognized requests
+            // Default response
             else {
               response = process.env.TOGGLE_INITIAL_RESPONSE;
+            }
+            
+            // Add file analysis if available
+            if (analysis) {
+              response += analysis;
+            } else if (files.length === 0) {
+              response += '\n\n**Note:** No toggle button implementation files found. Please ensure the code is committed.';
             }
             
             // Post the response
@@ -130,3 +257,5 @@ jobs:
               issue_number: issue.number,
               body: response
             });
+        env:
+          TOGGLE_FILES: ${{ steps.find-files.outputs.files }}
